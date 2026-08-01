@@ -1,0 +1,4 @@
+// Runtime assets are embedded in Firestar.exe. No external assets folder is required.
+1 ICON "..\\assets\\firestar.ico"
+101 RCDATA "..\\assets\\DroidSans.ttf"
+102 RCDATA "..\\assets\\firestar_menu.png"
