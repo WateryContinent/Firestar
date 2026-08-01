@@ -330,16 +330,16 @@ namespace
         ImVec4* colors = style.Colors;
         colors[ImGuiCol_Text] = ImVec4(0.95f, 0.95f, 0.96f, 1.0f);
         colors[ImGuiCol_TextDisabled] = ImVec4(0.72f, 0.74f, 0.78f, 1.0f);
-        colors[ImGuiCol_WindowBg] = ImVec4(0.085f, 0.090f, 0.102f, 1.0f);
-        colors[ImGuiCol_ChildBg] = ImVec4(0.108f, 0.114f, 0.130f, 1.0f);
-        colors[ImGuiCol_PopupBg] = ImVec4(0.125f, 0.132f, 0.150f, 1.0f);
-        colors[ImGuiCol_Border] = ImVec4(0.290f, 0.305f, 0.335f, 1.0f);
+        colors[ImGuiCol_WindowBg] = ImVec4(0.070f, 0.074f, 0.084f, 1.0f);
+        colors[ImGuiCol_ChildBg] = ImVec4(0.090f, 0.095f, 0.108f, 1.0f);
+        colors[ImGuiCol_PopupBg] = ImVec4(0.185f, 0.195f, 0.220f, 1.0f);
+        colors[ImGuiCol_Border] = ImVec4(0.360f, 0.375f, 0.415f, 1.0f);
         colors[ImGuiCol_FrameBg] = ImVec4(0.145f, 0.152f, 0.172f, 1.0f);
         colors[ImGuiCol_FrameBgHovered] = ImVec4(0.205f, 0.215f, 0.240f, 1.0f);
         colors[ImGuiCol_FrameBgActive] = ImVec4(0.260f, 0.272f, 0.302f, 1.0f);
         colors[ImGuiCol_TitleBg] = ImVec4(0.100f, 0.106f, 0.120f, 1.0f);
         colors[ImGuiCol_TitleBgActive] = ImVec4(0.145f, 0.152f, 0.172f, 1.0f);
-        colors[ImGuiCol_MenuBarBg] = ImVec4(0.115f, 0.122f, 0.140f, 1.0f);
+        colors[ImGuiCol_MenuBarBg] = ImVec4(0.165f, 0.175f, 0.200f, 1.0f);
         colors[ImGuiCol_ScrollbarBg] = ImVec4(0.060f, 0.065f, 0.075f, 1.0f);
         colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.310f, 0.325f, 0.365f, 1.0f);
         colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.420f, 0.440f, 0.490f, 1.0f);
@@ -349,9 +349,9 @@ namespace
         colors[ImGuiCol_Button] = ImVec4(0.310f, 0.205f, 0.120f, 1.0f);
         colors[ImGuiCol_ButtonHovered] = ImVec4(0.475f, 0.295f, 0.150f, 1.0f);
         colors[ImGuiCol_ButtonActive] = ImVec4(0.650f, 0.400f, 0.190f, 1.0f);
-        colors[ImGuiCol_Header] = ImVec4(0.265f, 0.185f, 0.125f, 1.0f);
-        colors[ImGuiCol_HeaderHovered] = ImVec4(0.420f, 0.270f, 0.150f, 1.0f);
-        colors[ImGuiCol_HeaderActive] = ImVec4(0.585f, 0.365f, 0.180f, 1.0f);
+        colors[ImGuiCol_Header] = ImVec4(0.340f, 0.225f, 0.140f, 1.0f);
+        colors[ImGuiCol_HeaderHovered] = ImVec4(0.505f, 0.325f, 0.175f, 1.0f);
+        colors[ImGuiCol_HeaderActive] = ImVec4(0.660f, 0.430f, 0.220f, 1.0f);
         colors[ImGuiCol_Separator] = ImVec4(0.300f, 0.315f, 0.350f, 1.0f);
         colors[ImGuiCol_ResizeGrip] = ImVec4(0.430f, 0.460f, 0.520f, 0.35f);
         colors[ImGuiCol_ResizeGripHovered] = ImVec4(0.920f, 0.510f, 0.180f, 0.76f);
@@ -603,7 +603,11 @@ namespace
     {
         DXGI_SWAP_CHAIN_DESC description{};
         description.BufferCount = 2;
-        description.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        // The bundled RSX ImGui backend converts vertex colours from sRGB to
+        // linear space and creates detached viewports as scRGB float targets.
+        // Keep the host target in the same colour space so an ImGui window has
+        // identical brightness before and after it leaves the main viewport.
+        description.BufferDesc.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
         description.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
         description.OutputWindow = window;
         description.SampleDesc.Count = 1;
@@ -730,15 +734,16 @@ namespace
             }
 
             constexpr ImGuiWindowFlags mainFlags = ImGuiWindowFlags_NoCollapse;
-            // Keep this independent root window in its own platform viewport
-            // when it is dragged out. Re-merging a DX11 viewport into the host
-            // caused its background to render almost black on some systems.
+            // Merge with the host while the Atlas is inside it so the global
+            // File/Atlas/Settings menus remain above the editor. Dear ImGui
+            // will still create a normal platform window when it is dragged
+            // outside the host viewport.
             ImGuiWindowClass atlasWindowClass{};
-            atlasWindowClass.ViewportFlagsOverrideSet = ImGuiViewportFlags_NoAutoMerge | ImGuiViewportFlags_NoTaskBarIcon;
+            atlasWindowClass.ViewportFlagsOverrideSet = ImGuiViewportFlags_NoTaskBarIcon;
             ImGui::SetNextWindowClass(&atlasWindowClass);
             ImGui::SetNextWindowBgAlpha(1.0f);
-            ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.085f, 0.090f, 0.102f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.108f, 0.114f, 0.130f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.070f, 0.074f, 0.084f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.090f, 0.095f, 0.108f, 1.0f));
             ImGui::Begin("Firestar", nullptr, mainFlags);
             if (g_headingFont) ImGui::PushFont(g_headingFont);
             ImGui::TextColored(ImVec4(1.0f, 0.57f, 0.20f, 1.0f), "FIRESTAR");
@@ -2187,7 +2192,7 @@ int APIENTRY wWinMain(const HINSTANCE instance, HINSTANCE, PWSTR, int)
         app.Draw(window);
         ImGui::Render();
 
-        constexpr float clearColor[] = {0.075f, 0.080f, 0.090f, 1.0f};
+        constexpr float clearColor[] = {0.035f, 0.038f, 0.044f, 1.0f};
         g_context->OMSetRenderTargets(1, &g_renderTarget, nullptr);
         g_context->ClearRenderTargetView(g_renderTarget, clearColor);
         ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
