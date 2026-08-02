@@ -1,4 +1,9 @@
-# Firestar
+<div align="center">
+   <img width="170" height="170" src="/assets/firestar_menu.png" alt="Logo">
+</div>
+<div align="center">
+  <h1><b>Firestar</b></h1>
+  </div>
 
 Firestar is a Windows editor for creating and building Apex Legends RPAKs.
 
@@ -7,7 +12,7 @@ asset values, replace source files, and build the project directly. Source files
 are checked before importing so obvious type or version mismatches are caught
 early.
 
-Firestar also includes a UI atlas builder and a small mod-folder creator.
+Firestar also includes a UI atlas builder and a small mod folder creator.
 
 ## Basic use
 
@@ -16,7 +21,7 @@ Firestar also includes a UI atlas builder and a small mod-folder creator.
 3. Select an asset to edit its fields or inspect its source data.
 4. Save the `.fsp` project and click **Build RPAK**. Export a standalone RePak JSON from the **File** menu when needed.
 
-The UI atlas is available under **Tools**. If an RPAK is already open, its
+The Original UI atlas tool is available under **Tools**. If an RPAK Project is already open, its
 texture and UIMG entries can be added straight to that project.
 
 Deployment is optional and must be configured in **Settings**. Firestar always
@@ -30,4 +35,4 @@ written to `bin/Release/Firestar.exe`.
 ## License
 
 Firestar is released under the [MIT License](LICENSE). The included RePak source
-keeps its upstream MIT notice in `third_party/RePak-LICENSE.txt`.
+keeps its MIT License in `third_party/RePak-LICENSE.txt`.
