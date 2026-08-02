@@ -2,3 +2,4 @@
 1 ICON "..\\assets\\firestar.ico"
 101 RCDATA "..\\assets\\DroidSans.ttf"
 102 RCDATA "..\\assets\\firestar_menu.png"
+103 RCDATA "..\\docs\\REPAK_ASSET_TYPES.md"

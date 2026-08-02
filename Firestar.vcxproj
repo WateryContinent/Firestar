@@ -52,8 +52,8 @@
     <ClCompile>
       <WarningLevel>Level4</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;UNICODE;_UNICODE;NOMINMAX;_DEBUG;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\rsx (Watery)\src\thirdparty\imgui;$(ProjectDir)..\rsx (Watery)\src\thirdparty\imgui\backends;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;UNICODE;_UNICODE;NOMINMAX;_DEBUG;_CRT_SECURE_NO_WARNINGS;FIRESTAR_REPAK_EMBEDDED;RAPIDJSON_SSE2;RAPIDJSON_PARSE_DEFAULT_FLAGS=kParseTrailingCommasFlag|kParseCommentsFlag|kParseIterativeFlag|kParseValidateEncodingFlag;ZSTD_MULTITHREAD;MSC_PLATFORM_TOOLSET_$(PlatformToolset);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)src\repak;$(ProjectDir)src\repak\thirdparty;$(ProjectDir)..\rsx (Watery)\src\thirdparty;$(ProjectDir)..\rsx (Watery)\src\thirdparty\imgui;$(ProjectDir)..\rsx (Watery)\src\thirdparty\imgui\backends;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
@@ -63,7 +63,8 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>d3d11.lib;dxgi.lib;d3dcompiler.lib;windowscodecs.lib;ole32.lib;shell32.lib;comdlg32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\rsx (Watery)\src\thirdparty\oodle;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>oo2core_x64D.lib;d3d11.lib;dxgi.lib;d3dcompiler.lib;windowscodecs.lib;xaudio2.lib;ole32.lib;shell32.lib;comdlg32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -72,8 +73,8 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_WINDOWS;UNICODE;_UNICODE;NOMINMAX;NDEBUG;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\rsx (Watery)\src\thirdparty\imgui;$(ProjectDir)..\rsx (Watery)\src\thirdparty\imgui\backends;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;UNICODE;_UNICODE;NOMINMAX;NDEBUG;_CRT_SECURE_NO_WARNINGS;FIRESTAR_REPAK_EMBEDDED;RAPIDJSON_SSE2;RAPIDJSON_PARSE_DEFAULT_FLAGS=kParseTrailingCommasFlag|kParseCommentsFlag|kParseIterativeFlag|kParseValidateEncodingFlag;ZSTD_MULTITHREAD;MSC_PLATFORM_TOOLSET_$(PlatformToolset);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(ProjectDir)src;$(ProjectDir)src\repak;$(ProjectDir)src\repak\thirdparty;$(ProjectDir)..\rsx (Watery)\src\thirdparty;$(ProjectDir)..\rsx (Watery)\src\thirdparty\imgui;$(ProjectDir)..\rsx (Watery)\src\thirdparty\imgui\backends;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
@@ -85,11 +86,21 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>d3d11.lib;dxgi.lib;d3dcompiler.lib;windowscodecs.lib;ole32.lib;shell32.lib;comdlg32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\rsx (Watery)\src\thirdparty\oodle;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>oo2core_x64.lib;d3d11.lib;dxgi.lib;d3dcompiler.lib;windowscodecs.lib;xaudio2.lib;ole32.lib;shell32.lib;comdlg32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\Firestar.cpp" />
+    <ClCompile Include="src\editor\AudioPreview.cpp" />
+    <ClCompile Include="src\editor\AssetCompatibility.cpp" />
+    <ClCompile Include="src\editor\PackedProject.cpp" />
+    <ClCompile Include="src\editor\ProjectDocument.cpp" />
+    <ClCompile Include="src\editor\RmdlPreview.cpp" />
+    <ClCompile Include="src\repak\**\*.cpp" Exclude="src\repak\utils\logger.cpp" />
+    <ClCompile Include="src\repak\**\*.c" Exclude="src\repak\thirdparty\stb\stb_vorbis.c">
+      <CompileAs>CompileAsC</CompileAs>
+    </ClCompile>
     <ClCompile Include="..\rsx (Watery)\src\thirdparty\imgui\imgui.cpp" />
     <ClCompile Include="..\rsx (Watery)\src\thirdparty\imgui\imgui_draw.cpp" />
     <ClCompile Include="..\rsx (Watery)\src\thirdparty\imgui\imgui_tables.cpp" />

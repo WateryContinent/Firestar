@@ -1,41 +1,33 @@
 # Firestar
 
-Firestar is a UI atlas builder for Apex Legends Season 3. It packs images into a
-DDS texture atlas and creates the matching RePak JSON for the texture and UIMG
-assets.
+Firestar is a Windows editor for creating and building Apex Legends RPAKs.
 
-## Features
+It can open normal RePak JSON files and build lists, browse their assets, edit
+asset values, replace source files, and build the project directly. Source files
+are checked before importing so obvious type or version mismatches are caught
+early.
 
-- Drag and drop image importing
-- Live atlas preview
-- Automatic power-of-two atlas sizing
-- Configurable padding with edge-pixel extrusion
-- Editable RUI image paths
-- DDS and RePak JSON export
-- Save and reopen projects as `.fsa` files
+Firestar also includes a UI atlas builder and a small mod-folder creator.
 
-## Usage
+## Basic use
 
-1. Add or drop your source images into Firestar.
-2. Check the generated RUI paths.
-3. Choose the output folder and packing options under **Settings**.
-4. Click **Export DDS + JSON**.
-5. Build the exported JSON with RePak.
+1. Open a Firestar project, import a RePak JSON file, or create a new RPAK from the home page.
+2. Add files with **+ Asset** or import a whole asset folder.
+3. Select an asset to edit its fields or inspect its source data.
+4. Save the `.fsp` project and click **Build RPAK**. Export a standalone RePak JSON from the **File** menu when needed.
 
-## Building
+The UI atlas is available under **Tools**. If an RPAK is already open, its
+texture and UIMG entries can be added straight to that project.
 
-Firestar is a C++20, DirectX 11 application for 64-bit Windows. It requires
-Visual Studio, the MSVC v145 toolset, a Windows SDK and Dear ImGui with the
-Win32 and DirectX 11 backends.
+Deployment is optional and must be configured in **Settings**. Firestar always
+shows the target and asks before copying a built RPAK or changing preload.rson.
 
-Build the `Release|x64` configuration in Visual Studio, or run:
+## Building Firestar
 
-```powershell
-MSBuild.exe Firestar.vcxproj /p:Configuration=Release /p:Platform=x64 /m:1
-```
-
-The executable will be written to `bin/Release/Firestar.exe`.
+Open `Firestar.sln` in Visual Studio and build `Release|x64`. The executable is
+written to `bin/Release/Firestar.exe`.
 
 ## License
 
-Firestar is released under the [MIT License](LICENSE).
+Firestar is released under the [MIT License](LICENSE). The included RePak source
+keeps its upstream MIT notice in `third_party/RePak-LICENSE.txt`.
