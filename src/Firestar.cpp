@@ -11,6 +11,7 @@
 #include "imgui.h"
 #include "backends/imgui_impl_dx11.h"
 #include "backends/imgui_impl_win32.h"
+#include "FirestarVersion.h"
 #include "editor/ProjectDocument.h"
 #include "editor/AssetCompatibility.h"
 #include "editor/AudioPreview.h"
@@ -79,6 +80,7 @@ namespace
     ImFont* g_headingFont{};
     HICON g_appIcon{};
     std::vector<std::uint8_t> g_embeddedFontBytes;
+    std::string g_imguiIniPath;
 
     constexpr int ResourceFirestarApplicationIcon = 1;
     constexpr int ResourceFirestarFont = 101;
@@ -221,6 +223,16 @@ namespace
         return result.empty() ? "firestar_atlas" : result;
     }
 
+    [[nodiscard]] std::string DefaultMandatoryStarPakPath(const std::string_view packageName)
+    {
+        return "paks/Win64/" + FileStemSafe(packageName) + ".starpak";
+    }
+
+    [[nodiscard]] std::string DefaultOptionalStarPakPath(const std::string_view packageName)
+    {
+        return "paks/Win64/" + FileStemSafe(packageName) + ".opt.starpak";
+    }
+
     [[nodiscard]] std::string RUINameFromFile(const fs::path& path)
     {
         std::string stem = PathToUtf8(path.stem());
@@ -299,6 +311,27 @@ namespace
         const fs::path root = length > 0 && length < buffer.size()
             ? fs::path(buffer.data(), buffer.data() + length) : GetExecutableDirectory();
         return root / L"Firestar" / L"settings.json";
+    }
+
+    [[nodiscard]] fs::path GetImGuiIniPath()
+    {
+        PWSTR documentsPath{};
+        fs::path root;
+        if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Documents, KF_FLAG_CREATE, nullptr, &documentsPath)) &&
+            documentsPath)
+        {
+            root = documentsPath;
+            CoTaskMemFree(documentsPath);
+        }
+        else
+        {
+            if (documentsPath) CoTaskMemFree(documentsPath);
+            root = GetUserSettingsPath().parent_path().parent_path();
+        }
+        root /= L"Firestar";
+        std::error_code error;
+        fs::create_directories(root, error);
+        return root / L"imgui.ini";
     }
 
     [[nodiscard]] fs::path GetDefaultOutputDirectory()
@@ -1118,6 +1151,36 @@ namespace
             }
             if (!repakProject_.Create(outputRoot, "firestar_project_test", error))
                 return false;
+            currentRePakProjectPath_.clear();
+            const rapidjson::Value& createdProject = repakProject_.Document();
+            const auto mandatoryStream = createdProject.FindMember("streamFileMandatory");
+            const auto optionalStream = createdProject.FindMember("streamFileOptional");
+            if (mandatoryStream == createdProject.MemberEnd() || !mandatoryStream->value.IsString() ||
+                std::string_view(mandatoryStream->value.GetString(), mandatoryStream->value.GetStringLength()) !=
+                    "paks/Win64/firestar_project_test.starpak" ||
+                optionalStream == createdProject.MemberEnd() || !optionalStream->value.IsString() ||
+                std::string_view(optionalStream->value.GetString(), optionalStream->value.GetStringLength()) !=
+                    "paks/Win64/firestar_project_test.opt.starpak")
+            {
+                error = "New projects did not receive generated mandatory and optional StarPak paths.";
+                return false;
+            }
+            repakProject_.Document()["name"].SetString("firestar_package_test", repakProject_.Allocator());
+            repakProject_.Document()["streamFileMandatory"].SetString(
+                "paks/Win64/firestar_package_test.starpak", repakProject_.Allocator());
+            repakProject_.Document()["streamFileOptional"].SetString(
+                "paks/Win64/firestar_package_test.opt.starpak", repakProject_.Allocator());
+            if (FirestarProjectName() != "firestar_project_test" ||
+                DefaultFirestarProjectPath().filename() != L"firestar_project_test.fsp" ||
+                BuiltPakPath().filename() != L"firestar_package_test.rpak" ||
+                std::string_view(repakProject_.Document()["streamFileMandatory"].GetString()) !=
+                    "paks/Win64/firestar_package_test.starpak" ||
+                std::string_view(repakProject_.Document()["streamFileOptional"].GetString()) !=
+                    "paks/Win64/firestar_package_test.opt.starpak")
+            {
+                error = "The Firestar project name is still coupled to the RPAK package name.";
+                return false;
+            }
             const size_t sourceIndex = repakProject_.AddAsset("awsr", "audio/test_source.rpak");
             rapidjson::Value* source = repakProject_.Asset(sourceIndex);
             if (!source) { error = "Could not create the audio source test asset."; return false; }
@@ -1199,6 +1262,12 @@ namespace
             if (reopened.repakProject_.SerializeDocument() != expectedJson)
             {
                 error = "The JSON embedded in the reopened Firestar project changed.";
+                return false;
+            }
+            if (reopened.FirestarProjectName() != "firestar_project_test" ||
+                reopened.repakProject_.Name() != "firestar_package_test")
+            {
+                error = "The reopened project did not keep separate project and RPAK package names.";
                 return false;
             }
             if (!reopened.repakProject_.ExportJson(outputRoot / L"exported_repak.json", error))
@@ -1689,6 +1758,48 @@ namespace
             return repakProject_.BuildOutputDirectory() / PathFromUtf8(repakProject_.Name() + ".rpak");
         }
 
+        [[nodiscard]] std::string FirestarProjectName() const
+        {
+            if (!repakProject_.IsOpen()) return {};
+            const fs::path identityPath = currentRePakProjectPath_.empty()
+                ? repakProject_.ManifestPath() : currentRePakProjectPath_;
+            const std::string name = PathToUtf8(identityPath.stem());
+            return name.empty() ? FileStemSafe(repakProject_.Name()) : name;
+        }
+
+        void EnsureGeneratedStreamPaths()
+        {
+            if (!repakProject_.IsOpen()) return;
+            rapidjson::Document& document = repakProject_.Document();
+            auto& allocator = document.GetAllocator();
+            const std::string packageName = repakProject_.Name();
+            if (packageName.empty()) return;
+            const std::string projectName = FirestarProjectName();
+            bool changed{};
+            const auto ensure = [&document, &allocator, &changed](const char* field,
+                const std::string& value, const std::string& previousGeneratedValue) {
+                auto member = document.FindMember(field);
+                if (member != document.MemberEnd() && member->value.IsString() &&
+                    member->value.GetStringLength() != 0)
+                {
+                    const std::string_view current(member->value.GetString(), member->value.GetStringLength());
+                    if (current == value || current != previousGeneratedValue) return;
+                }
+                if (member != document.MemberEnd()) member->value.SetString(value.c_str(), allocator);
+                else document.AddMember(rapidjson::Value(field, allocator),
+                    rapidjson::Value(value.c_str(), allocator), allocator);
+                changed = true;
+            };
+            ensure("streamFileMandatory", DefaultMandatoryStarPakPath(packageName),
+                DefaultMandatoryStarPakPath(projectName));
+            if (repakProject_.PakVersion() >= 8)
+                ensure("streamFileOptional", DefaultOptionalStarPakPath(packageName),
+                    DefaultOptionalStarPakPath(projectName));
+            if (!changed) return;
+            repakProject_.RefreshDerivedPaths();
+            repakProject_.MarkDirty();
+        }
+
         [[nodiscard]] std::vector<fs::path> BuiltProducts() const
         {
             std::vector<fs::path> products{BuiltPakPath()};
@@ -1851,6 +1962,7 @@ namespace
                 return false;
             }
             currentRePakProjectPath_.clear();
+            EnsureGeneratedStreamPaths();
             workspaceMode_ = WorkspaceMode::RePakProject;
             selectedAsset_ = repakProject_.AssetCount() ? 0 : -1;
             loadedSourcePath_.clear();
@@ -1891,7 +2003,7 @@ namespace
         {
             if (!repakProject_.IsOpen()) return {};
             return repakProject_.BuildBaseDirectory() /
-                PathFromUtf8(FileStemSafe(repakProject_.Name()) + ".fsp");
+                PathFromUtf8(FileStemSafe(FirestarProjectName()) + ".fsp");
         }
 
         void SaveAfterAssetAdded()
@@ -2207,6 +2319,7 @@ namespace
                 return false;
             }
             currentRePakProjectPath_ = absolutePath;
+            EnsureGeneratedStreamPaths();
             workspaceMode_ = WorkspaceMode::RePakProject;
             selectedAsset_ = repakProject_.AssetCount() ? 0 : -1;
             RefreshSourceData();
@@ -3427,6 +3540,8 @@ namespace
             }
             if (showPackedProjectPrompt_)
                 ImGui::OpenPopup("Open packed Firestar project");
+            ImGui::SetNextWindowViewport(viewport->ID);
+            ImGui::SetNextWindowPos(viewport->GetCenter(), ImGuiCond_Always, ImVec2(0.5f, 0.5f));
             if (ImGui::BeginPopupModal("Open packed Firestar project", &showPackedProjectPrompt_,
                 ImGuiWindowFlags_AlwaysAutoResize))
             {
@@ -3556,7 +3671,7 @@ namespace
                 return;
             }
 
-            ImGui::Text("%s%s", repakProject_.Name().c_str(), repakProject_.IsDirty() ? " *" : "");
+            ImGui::Text("%s%s", FirestarProjectName().c_str(), repakProject_.IsDirty() ? " *" : "");
             ImGui::SameLine();
             ImGui::TextDisabled("%s", currentRePakProjectPath_.empty()
                 ? "Unsaved Firestar project"
@@ -5784,6 +5899,9 @@ namespace
                 ImGui::TextColored(ImVec4(1.0f, 0.60f, 0.23f, 1.0f), "FIRESTAR");
                 if (g_headingFont) ImGui::PopFont();
                 ImGui::TextUnformatted("RPAK tools for Apex Legends");
+                ImGui::Text("Version %s", FIRESTAR_VERSION_STRING);
+                ImGui::SameLine();
+                ImGui::TextDisabled("(%s)", FIRESTAR_UPDATE_STRING);
                 ImGui::Separator();
                 ImGui::TextUnformatted("Made by WateryContinent");
                 ImGui::TextDisabled("GitHub: @WateryContinent");
@@ -5956,6 +6074,8 @@ namespace
             std::string name = getString("name", repakProject_.Name().c_str());
             std::string assetsDirectory = getString("assetsDir", "assets/");
             std::string outputDirectory = getString("outputDir", "build/");
+            std::string mandatory = getString("streamFileMandatory");
+            std::string optional = getString("streamFileOptional");
             if (ImGui::BeginTable("PackageSettings", 2, ImGuiTableFlags_SizingFixedFit))
             {
                 ImGui::TableSetupColumn("Field", ImGuiTableColumnFlags_WidthFixed, 180.0f);
@@ -5963,12 +6083,40 @@ namespace
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
                 ImGui::AlignTextToFramePadding();
+                ImGui::TextUnformatted("Project name");
+                ImGui::TableSetColumnIndex(1);
+                ImGui::AlignTextToFramePadding();
+                ImGui::TextUnformatted(FirestarProjectName().c_str());
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("The project name comes from the .fsp filename. Use Save As to rename it.");
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::AlignTextToFramePadding();
                 ImGui::TextUnformatted("RPAK version");
                 ImGui::TableSetColumnIndex(1);
                 ImGui::AlignTextToFramePadding();
                 ImGui::Text("%d", repakProject_.PakVersion());
+                const std::string previousName = name;
                 if (drawStringRow("Package name", "##package_name", name, 512))
-                { setString("name", name); commit(); }
+                {
+                    name = FileStemSafe(name);
+                    const bool mandatoryWasGenerated = mandatory.empty() ||
+                        mandatory == DefaultMandatoryStarPakPath(previousName);
+                    const bool optionalWasGenerated = optional.empty() ||
+                        optional == DefaultOptionalStarPakPath(previousName);
+                    setString("name", name);
+                    if (mandatoryWasGenerated)
+                    {
+                        mandatory = DefaultMandatoryStarPakPath(name);
+                        setString("streamFileMandatory", mandatory);
+                    }
+                    if (repakProject_.PakVersion() >= 8 && optionalWasGenerated)
+                    {
+                        optional = DefaultOptionalStarPakPath(name);
+                        setString("streamFileOptional", optional);
+                    }
+                    commit();
+                }
                 if (drawStringRow("Assets directory", "##assets_directory", assetsDirectory, 2048))
                 { setString("assetsDir", assetsDirectory); commit(); }
                 if (drawStringRow("Output directory", "##output_directory", outputDirectory, 2048))
@@ -5990,8 +6138,6 @@ namespace
             if (ImGui::Checkbox("Verbose build logging", &debugInfo)) { setBool("showDebugInfo", debugInfo); commit(); }
 
             ImGui::SeparatorText("Streaming");
-            std::string mandatory = getString("streamFileMandatory");
-            std::string optional = getString("streamFileOptional");
             if (ImGui::BeginTable("StreamingSettings", 2, ImGuiTableFlags_SizingFixedFit))
             {
                 ImGui::TableSetupColumn("Field", ImGuiTableColumnFlags_WidthFixed, 180.0f);
@@ -6004,7 +6150,18 @@ namespace
                 ImGui::EndDisabled();
                 ImGui::EndTable();
             }
-            ImGui::TextDisabled("Packed audio and mandatory-streamed assets require a mandatory starpak path.");
+            if (ImGui::Button("Use package StarPak names"))
+            {
+                mandatory = DefaultMandatoryStarPakPath(name);
+                optional = DefaultOptionalStarPakPath(name);
+                setString("streamFileMandatory", mandatory);
+                if (repakProject_.PakVersion() >= 8)
+                    setString("streamFileOptional", optional);
+                commit();
+            }
+            ImGui::SameLine();
+            ImGui::TextDisabled("Defaults: <package>.starpak and <package>.opt.starpak");
+            ImGui::TextDisabled("Packed audio and mandatory-streamed assets require a mandatory StarPak path.");
 
             ImGui::SeparatorText("Input performance");
             int ioWorkers = (std::clamp)(getInt("ioWorkers", 0), 0, 64);
@@ -7632,6 +7789,8 @@ int APIENTRY wWinMain(const HINSTANCE instance, HINSTANCE, PWSTR, int)
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
+    g_imguiIniPath = PathToUtf8(GetImGuiIniPath());
+    io.IniFilename = g_imguiIniPath.c_str();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable | ImGuiConfigFlags_ViewportsEnable;
     ApplyFirestarStyle();
     ImGui::GetStyle().WindowRounding = 0.0f;

@@ -138,9 +138,9 @@ namespace firestar::editor
         }
     }
 
-    bool ProjectDocument::Create(const fs::path& rootDirectory, std::string projectName, std::string& error)
+    bool ProjectDocument::Create(const fs::path& rootDirectory, std::string packageName, std::string& error)
     {
-        projectName = SanitizeName(std::move(projectName));
+        packageName = SanitizeName(std::move(packageName));
         std::error_code ioError;
         fs::create_directories(rootDirectory / "assets", ioError);
         if (ioError)
@@ -157,14 +157,20 @@ namespace firestar::editor
         document_.SetObject();
         auto& allocator = document_.GetAllocator();
         document_.AddMember("version", 8, allocator);
-        document_.AddMember("name", rapidjson::Value(projectName.c_str(), allocator), allocator);
+        document_.AddMember("name", rapidjson::Value(packageName.c_str(), allocator), allocator);
         document_.AddMember("assetsDir", "assets/", allocator);
         document_.AddMember("outputDir", "build/", allocator);
+        const std::string mandatoryStream = "paks/Win64/" + packageName + ".starpak";
+        const std::string optionalStream = "paks/Win64/" + packageName + ".opt.starpak";
+        document_.AddMember("streamFileMandatory",
+            rapidjson::Value(mandatoryStream.c_str(), allocator), allocator);
+        document_.AddMember("streamFileOptional",
+            rapidjson::Value(optionalStream.c_str(), allocator), allocator);
         document_.AddMember("keepDevOnly", true, allocator);
         document_.AddMember("keepServerOnly", true, allocator);
         document_.AddMember("keepClientOnly", true, allocator);
         document_.AddMember("files", rapidjson::Value(rapidjson::kArrayType), allocator);
-        manifestPath_ = rootDirectory / (projectName + ".json");
+        manifestPath_ = rootDirectory / (packageName + ".json");
         buildManifestPath_ = manifestPath_;
         buildBaseDirectory_ = rootDirectory;
         buildOutputDirectory_ = rootDirectory / "build";

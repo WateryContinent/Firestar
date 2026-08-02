@@ -111,6 +111,7 @@
   <ItemGroup>
     <None Include="assets\DroidSans.ttf" />
     <None Include="assets\firestar_menu.png" />
+    <ClInclude Include="src\FirestarVersion.h" />
     <ResourceCompile Include="src\Firestar.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

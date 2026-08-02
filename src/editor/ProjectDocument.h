@@ -17,7 +17,7 @@ namespace firestar::editor
     {
     public:
         [[nodiscard]] bool Create(const std::filesystem::path& rootDirectory,
-            std::string projectName, std::string& error);
+            std::string packageName, std::string& error);
         [[nodiscard]] bool Load(const std::filesystem::path& manifestPath, std::string& error);
         [[nodiscard]] bool LoadSerialized(std::string_view json,
             const std::filesystem::path& manifestPathHint,
