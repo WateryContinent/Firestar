@@ -94,6 +94,32 @@ namespace firestar::editor
             return changed;
         }
 
+        bool IsAnimationAssetType(const rapidjson::Value& asset)
+        {
+            if (!asset.IsObject()) return false;
+            const auto type = asset.FindMember("_type");
+            if (type == asset.MemberEnd() || !type->value.IsString()) return false;
+            const std::string_view value(type->value.GetString(), type->value.GetStringLength());
+            return value == "arig" || value == "aseq";
+        }
+
+        std::optional<size_t> MoveFirstNonAnimationAssetToFront(rapidjson::Document& document)
+        {
+            if (!document.IsObject()) return std::nullopt;
+            const auto filesMember = document.FindMember("files");
+            if (filesMember == document.MemberEnd() || !filesMember->value.IsArray()) return std::nullopt;
+            auto files = filesMember->value.GetArray();
+            if (files.Size() < 2 || !IsAnimationAssetType(files[0])) return std::nullopt;
+
+            for (rapidjson::SizeType index = 1; index < files.Size(); ++index)
+            {
+                if (IsAnimationAssetType(files[index])) continue;
+                std::rotate(files.Begin(), files.Begin() + index, files.Begin() + index + 1);
+                return static_cast<size_t>(index);
+            }
+            return std::nullopt;
+        }
+
         bool ParseDocument(std::istream& input, rapidjson::Document& document,
             const fs::path& path, std::string& error)
         {
@@ -256,6 +282,7 @@ namespace firestar::editor
         inheritedPakVersion_ = 0;
         document_.Swap(loaded);
         const bool normalizedAssetPaths = NormalizeDocumentAssetPaths(document_);
+        const bool normalizedAnimationOrder = MoveFirstNonAnimationAssetToFront(document_).has_value();
         manifestPath_ = absolutePath;
         if (Validate(false, error))
         {
@@ -286,7 +313,7 @@ namespace firestar::editor
                 if (streamPath.is_relative()) streamPath = buildBaseDirectory_ / streamPath;
                 streamOutputPaths_.push_back(fs::absolute(streamPath).lexically_normal());
             }
-            dirty_ = normalizedAssetPaths;
+            dirty_ = normalizedAssetPaths || normalizedAnimationOrder;
             return true;
         }
         Close();
@@ -317,6 +344,7 @@ namespace firestar::editor
 
         document_.Swap(loaded);
         const bool normalizedAssetPaths = NormalizeDocumentAssetPaths(document_);
+        const bool normalizedAnimationOrder = MoveFirstNonAnimationAssetToFront(document_).has_value();
         manifestPath_ = manifestPathHint.empty()
             ? fs::absolute(fs::path("firestar_project.json")).lexically_normal()
             : fs::absolute(manifestPathHint).lexically_normal();
@@ -343,7 +371,7 @@ namespace firestar::editor
             if (streamPath.is_relative()) streamPath = buildBaseDirectory_ / streamPath;
             streamOutputPaths_.push_back(fs::absolute(streamPath).lexically_normal());
         }
-        dirty_ = normalizedAssetPaths;
+        dirty_ = normalizedAssetPaths || normalizedAnimationOrder;
         return true;
     }
 
@@ -361,10 +389,11 @@ namespace firestar::editor
             return false;
         document_.Swap(loaded);
         const bool normalizedAssetPaths = NormalizeDocumentAssetPaths(document_);
+        const bool normalizedAnimationOrder = MoveFirstNonAnimationAssetToFront(document_).has_value();
         manifestPath_ = fs::absolute(manifestPath).lexically_normal();
         if (!Validate(versionMayBeInherited, error))
             return false;
-        dirty_ = normalizedAssetPaths;
+        dirty_ = normalizedAssetPaths || normalizedAnimationOrder;
         return true;
     }
 
@@ -566,6 +595,11 @@ namespace firestar::editor
         return files != document_.MemberEnd() && files->value.IsArray() ? files->value.Size() : 0;
     }
 
+    bool ProjectDocument::HasLeadingAnimationAsset() const
+    {
+        return AssetCount() > 0 && IsAnimationAssetType(document_["files"][0]);
+    }
+
     rapidjson::Value* ProjectDocument::Asset(const size_t index)
     {
         if (index >= AssetCount()) return nullptr;
@@ -586,8 +620,12 @@ namespace firestar::editor
         asset.AddMember("_type", rapidjson::Value(type.c_str(), allocator), allocator);
         asset.AddMember("_path", rapidjson::Value(path.c_str(), allocator), allocator);
         document_["files"].PushBack(asset, allocator);
+        const size_t appendedIndex = AssetCount() - 1;
+        const std::optional<size_t> movedFrom = MoveFirstNonAnimationAssetToFront(document_);
         dirty_ = true;
-        return AssetCount() - 1;
+        if (!movedFrom) return appendedIndex;
+        if (appendedIndex == *movedFrom) return 0;
+        return appendedIndex < *movedFrom ? appendedIndex + 1 : appendedIndex;
     }
 
     bool ProjectDocument::RemoveAsset(const size_t index)
@@ -595,6 +633,7 @@ namespace firestar::editor
         if (index >= AssetCount()) return false;
         auto& files = document_["files"];
         files.Erase(files.Begin() + static_cast<rapidjson::SizeType>(index));
+        (void)MoveFirstNonAnimationAssetToFront(document_);
         dirty_ = true;
         return true;
     }

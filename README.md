@@ -33,7 +33,6 @@ written to `bin/Release/Firestar.exe`.
 
 ## License
 
-Firestar is released under the [MIT License](LICENSE). The included RePak source
-keeps its MIT License in `third_party/RePak-LICENSE.txt`.
+Firestar is released under the [MIT License](LICENSE).
 
 [Credit for the Logo](https://www.deviantart.com/hilsonity/art/Logo-Firestar-1065611272)

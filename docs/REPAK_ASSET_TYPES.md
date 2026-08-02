@@ -941,6 +941,15 @@ may auto-add `aseq` assets and GUIDs remain references.
 The rig's bones, ordering, and checksum relationships must match the model and
 animation data. RePak does not retarget animation between skeletons.
 
+Ordering note: do not leave an `arig` or `aseq` as the first entry in a RePak
+`files` array. Packs with an animation asset at descriptor index 0 have been
+observed to load with broken animation. Firestar automatically moves the first
+real non-animation asset ahead of leading rigs/sequences when a project is
+opened or edited. If a project contains only animation assets, add an actual
+non-animation dependency or keep the animations in a pack whose first asset is
+not an animation asset; Firestar warns before building rather than inventing a
+dummy asset.
+
 `arig` is Apex/version 8 only.
 
 ## `aseq`: animation sequences
@@ -979,6 +988,10 @@ assets/animseq/example/example.json
 RePak also inspects supported sequence event options for asset references and
 registers autolayer sequence GUIDs. Metadata dependencies do not repair broken
 bone animation, event payloads, or a sequence exported for the wrong skeleton.
+
+An `aseq` must not be the first asset in the `files` array. See the animation
+ordering note in the `arig` section above; Firestar applies the same ordering
+rule to both rigs and sequences.
 
 `aseq` is Apex/version 8 only.
 

@@ -1063,6 +1063,59 @@ namespace
                 error = "Unable to create the project self-test directory: " + ioError.message();
                 return false;
             }
+            firestar::editor::ProjectDocument animationOrderDocument;
+            if (!animationOrderDocument.Create(outputRoot / L"animation-order", "animation_order", error))
+                return false;
+            (void)animationOrderDocument.AddAsset("arig", "animrig/test.rrig");
+            (void)animationOrderDocument.AddAsset("aseq", "animseq/test.rseq");
+            if (!animationOrderDocument.HasLeadingAnimationAsset())
+            {
+                error = "The animation-only project did not retain its build warning state.";
+                return false;
+            }
+            const size_t safeAssetIndex = animationOrderDocument.AddAsset("txtr", "texture/test.dds");
+            const rapidjson::Value* const safeAsset = animationOrderDocument.Asset(0);
+            if (safeAssetIndex != 0 || animationOrderDocument.HasLeadingAnimationAsset() || !safeAsset ||
+                AssetMemberString(*safeAsset, "_type") != "txtr")
+            {
+                error = "Firestar did not move a non-animation asset ahead of leading rigs/sequences.";
+                return false;
+            }
+            (void)animationOrderDocument.AddAsset("matl", "material/test.json");
+            if (!animationOrderDocument.RemoveAsset(0))
+            {
+                error = "The animation-order self-test could not remove its leading asset.";
+                return false;
+            }
+            const rapidjson::Value* const replacementSafeAsset = animationOrderDocument.Asset(0);
+            if (animationOrderDocument.HasLeadingAnimationAsset() || !replacementSafeAsset ||
+                AssetMemberString(*replacementSafeAsset, "_type") != "matl")
+            {
+                error = "Removing the leading asset left a rig/sequence ahead of another safe asset.";
+                return false;
+            }
+            constexpr std::string_view legacyAnimationFirstJson = R"json({
+                "version": 8,
+                "name": "legacy_animation_order",
+                "assetsDir": "assets/",
+                "outputDir": "build/",
+                "files": [
+                    { "_type": "aseq", "_path": "animseq/legacy.rseq" },
+                    { "_type": "arig", "_path": "animrig/legacy.rrig" },
+                    { "_type": "txtr", "_path": "texture/legacy.dds" }
+                ]
+            })json";
+            firestar::editor::ProjectDocument importedOrderDocument;
+            if (!importedOrderDocument.LoadSerialized(legacyAnimationFirstJson,
+                outputRoot / L"legacy-animation-order.json", outputRoot, error))
+                return false;
+            const rapidjson::Value* const importedFirstAsset = importedOrderDocument.Asset(0);
+            if (!importedOrderDocument.IsDirty() || importedOrderDocument.HasLeadingAnimationAsset() ||
+                !importedFirstAsset || AssetMemberString(*importedFirstAsset, "_type") != "txtr")
+            {
+                error = "Firestar did not migrate an imported animation-first RePak manifest.";
+                return false;
+            }
             if (!repakProject_.Create(outputRoot, "firestar_project_test", error))
                 return false;
             const size_t sourceIndex = repakProject_.AddAsset("awsr", "audio/test_source.rpak");
@@ -2189,6 +2242,11 @@ namespace
         {
             if (!repakProject_.IsOpen() || repakBuilding_)
                 return;
+            if (repakProject_.HasLeadingAnimationAsset())
+            {
+                AppendRePakLog(firestar::repak::LogLevel::Warning,
+                    "This project contains only animation rigs/sequences. RePak animation assets are unreliable at index 0; add a real non-animation asset before building.");
+            }
             if (repakBuildThread_.joinable())
                 repakBuildThread_.join();
             {

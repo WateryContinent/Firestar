@@ -50,6 +50,7 @@ namespace firestar::editor
         [[nodiscard]] int PakVersion() const;
 
         [[nodiscard]] size_t AssetCount() const;
+        [[nodiscard]] bool HasLeadingAnimationAsset() const;
         [[nodiscard]] rapidjson::Value* Asset(size_t index);
         [[nodiscard]] const rapidjson::Value* Asset(size_t index) const;
         [[nodiscard]] size_t AddAsset(std::string type, std::string path);
