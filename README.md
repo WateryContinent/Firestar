@@ -1,8 +1,7 @@
 <div align="center">
-   <img width="170" height="170" src="/assets/firestar_menu.png" alt="Logo">
+   <img width="340" height="170" src="/assets/text_logo.png" alt="Logo">
 </div>
 <div align="center">
-  <h1><b>Firestar</b></h1>
   </div>
 
 Firestar is a Windows editor for creating and building Apex Legends RPAKs.
@@ -36,3 +35,5 @@ written to `bin/Release/Firestar.exe`.
 
 Firestar is released under the [MIT License](LICENSE). The included RePak source
 keeps its MIT License in `third_party/RePak-LICENSE.txt`.
+
+[Credit for the Logo](https://www.deviantart.com/hilsonity/art/Logo-Firestar-1065611272)
