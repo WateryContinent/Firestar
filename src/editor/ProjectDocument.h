@@ -74,6 +74,11 @@ namespace firestar::editor
         [[nodiscard]] std::string SerializeDocument() const;
 
     private:
+        // These loaders mutate only the temporary document used by the public load methods.
+        [[nodiscard]] bool LoadManifest(const std::filesystem::path& manifestPath, std::string& error);
+        [[nodiscard]] bool LoadEmbeddedManifest(std::string_view json,
+            const std::filesystem::path& manifestPathHint,
+            const std::filesystem::path& buildBaseDirectory, std::string& error);
         [[nodiscard]] bool LoadActiveManifest(const std::filesystem::path& manifestPath,
             bool versionMayBeInherited, std::string& error);
         [[nodiscard]] bool Validate(bool versionMayBeInherited, std::string& error);
