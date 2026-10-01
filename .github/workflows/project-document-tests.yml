@@ -21,7 +21,7 @@ jobs:
   linux:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Build and run regression tests
         run: |
           g++ -std=c++20 -Wall -Wextra -Wpedantic -Isrc -isystem src/repak/thirdparty \
@@ -31,7 +31,7 @@ jobs:
   windows:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Build and run regression tests
         shell: cmd
         run: |
