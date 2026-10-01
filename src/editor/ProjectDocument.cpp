@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cctype>
 #include <fstream>
+#include <utility>
 #include <rapidjson/error/en.h>
 #include <rapidjson/istreamwrapper.h>
 #include <rapidjson/ostreamwrapper.h>
@@ -184,6 +185,15 @@ namespace firestar::editor
 
     bool ProjectDocument::Load(const fs::path& manifestPath, std::string& error)
     {
+        ProjectDocument loaded;
+        if (!loaded.LoadManifest(manifestPath, error))
+            return false;
+        *this = std::move(loaded);
+        return true;
+    }
+
+    bool ProjectDocument::LoadManifest(const fs::path& manifestPath, std::string& error)
+    {
         const fs::path absolutePath = fs::absolute(manifestPath).lexically_normal();
         std::ifstream input(absolutePath, std::ios::binary);
         if (!input)
@@ -327,6 +337,16 @@ namespace firestar::editor
     }
 
     bool ProjectDocument::LoadSerialized(const std::string_view json,
+        const fs::path& manifestPathHint, const fs::path& buildBaseDirectory, std::string& error)
+    {
+        ProjectDocument loaded;
+        if (!loaded.LoadEmbeddedManifest(json, manifestPathHint, buildBaseDirectory, error))
+            return false;
+        *this = std::move(loaded);
+        return true;
+    }
+
+    bool ProjectDocument::LoadEmbeddedManifest(const std::string_view json,
         const fs::path& manifestPathHint, const fs::path& buildBaseDirectory, std::string& error)
     {
         rapidjson::Document loaded;
